@@ -4,11 +4,31 @@
 #include <libetpan/libetpan.h>
 #include <string>
 #include <functional>
+#include <map>
 
 namespace IMAP {
 class Message {
+
+  mailimap** ptrIMAP; // ptr to the coresponding IMAP session
+  uint32_t const UID;
+  std::string msgBody;
+  std::string msgSubject;
+  std::string msgDate;
+  std::string msgFrom;
+  std::string msgSender;
+  std::string msgTo;
+  std::string msgReplyTo; // Reply-To field
+  std::string msgCc;
+  std::string msgBcc;
+  std::string msgInReplyTo; // In-Reply-To field
+  std::string msgMessageID; // Message-ID field
+
+  
 public:
-	Message(){}
+    /**
+     * Constructor
+     */
+    Message(mailimap** ptrimap, uint32_t uid);
 	/**
 	 * Get the body of the message. You may chose to either include the headers or not.
 	 */
@@ -24,6 +44,27 @@ public:
 };
 
 class Session {
+  mailimap* imap; // a pointer to which will later point to a newed mailmap object
+  std::string mailbox;
+  uint32_t numMsgs;
+  uint32_t numRecentMsgs;
+  uint32_t nextMailboxUID;
+  uint32_t uidValid;
+  uint32_t numUnseenMsgs;
+  clist* fetchedMsgUID; // a list of UIDs of the fetched msgs that are already in the mailbox
+  Message** msgList; // a list of all emails in the inbox
+  
+  /**
+   * Get the mailbox status i.e. num of msgs, uid of the next mailbox, ect
+   */
+  void getMailboxStatus();
+  
+  /**
+   * Get the UID of an msg
+   */
+  uint32_t getOneMsgUID(mailimap_msg_att* msg_att);
+  
+  
 public:
 	Session(std::function<void()> updateUI);
 
@@ -35,12 +76,12 @@ public:
 	/**
 	 * connect to the specified server (143 is the standard unencrypte imap port)
 	 */
-	void connect(std::string const& server, size_t port = 143);
+	void connect(std::string const& server = "mailpunk.lsds.uk", size_t port = 143);
 
 	/**
 	 * log in to the server (connect first, then log in)
 	 */
-	void login(std::string const& userid, std::string const& password);
+	void login(std::string const& userid = "wl419mail", std::string const& password = "5e14d17");
 
 	/**
 	 * select a mailbox (only one can be selected at any given time)
@@ -51,6 +92,15 @@ public:
 
 	~Session();
 };
+
+
+/**
+* a map from an int key to MAILIMAP_STATUS_ATT_XXX
+*/
+//std::map<int, std::string> const StatusCode;
+
+
+  
 }
 
 #endif /* IMAP_H */
