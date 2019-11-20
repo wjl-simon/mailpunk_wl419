@@ -13,22 +13,24 @@ class Message {
   uint32_t const UID;
   std::string msgBody;
   std::string msgSubject;
-  std::string msgDate;
   std::string msgFrom;
-  std::string msgSender;
-  std::string msgTo;
-  std::string msgReplyTo; // Reply-To field
-  std::string msgCc;
-  std::string msgBcc;
-  std::string msgInReplyTo; // In-Reply-To field
-  std::string msgMessageID; // Message-ID field
+  std::function<void()> updateUIFunction;
 
+  /**
+   * Get the content of the message from the mailimap_msg_att data structure
+   */
+  char* getMsgContent(mailimap_msg_att* msgAtt);
+
+  /**
+   * Get sender from the mail_envelope data strcuture
+   */
+  std::string getSender(mailimap_envelope* msgEnv);
   
 public:
     /**
      * Constructor
      */
-    Message(mailimap** ptrimap, uint32_t uid);
+  Message(mailimap** ptrimap, uint32_t uid, std::function<void()> updateuifunction);
 	/**
 	 * Get the body of the message. You may chose to either include the headers or not.
 	 */
@@ -47,12 +49,9 @@ class Session {
   mailimap* imap; // a pointer to which will later point to a newed mailmap object
   std::string mailbox;
   uint32_t numMsgs;
-  uint32_t numRecentMsgs;
-  uint32_t nextMailboxUID;
-  uint32_t uidValid;
-  uint32_t numUnseenMsgs;
-  clist* fetchedMsgUID; // a list of UIDs of the fetched msgs that are already in the mailbox
-  Message** msgList; // a list of all emails in the inbox
+  Message** msgList;// a list of all emails in the inbox
+  std::function<void()> updateUIFunction; // functional obj to update the UI
+
   
   /**
    * Get the mailbox status i.e. num of msgs, uid of the next mailbox, ect
@@ -66,6 +65,7 @@ class Session {
   
   
 public:
+  
 	Session(std::function<void()> updateUI);
 
 	/**
@@ -81,7 +81,7 @@ public:
 	/**
 	 * log in to the server (connect first, then log in)
 	 */
-	void login(std::string const& userid = "wl419mail", std::string const& password = "5e14d17");
+	void login(std::string const& userid, std::string const& password);
 
 	/**
 	 * select a mailbox (only one can be selected at any given time)
