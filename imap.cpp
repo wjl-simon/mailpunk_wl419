@@ -14,15 +14,16 @@ using namespace std;
 /**
  * Constructor
  */
-Message::Message(mailimap** ptrimap, uint32_t uid, std::function<void()> updateuifunction)
-  :ptrIMAP(ptrimap),UID(uid),updateUIFunction(updateuifunction),
-   msgBody("<null>"),msgFrom("\"Anonymous\""),msgSubject("<No SubJect>")
+Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
+                 std::function<void()> updateuifunction)
+  :session(session), ptrIMAP(ptrimap),UID(uid),updateUIFunction(updateuifunction),
+   msgBody("<null>"),msgFrom("\"Anonymous\""),msgSubject("<No Subject>")
 {
-  
+  //--- 0. Representing the data structure
   mailimap_set* setWithThisMsgOnly = mailimap_set_new_single(UID); // a set with this msg only
-  mailimap_fetch_type* msgFetchType
-    = mailimap_fetch_type_new_fetch_att_list_empty(); // fetch type
+  mailimap_fetch_type* msgFetchType = mailimap_fetch_type_new_fetch_att_list_empty(); // fetch type
   mailimap_section* section = mailimap_section_new(NULL);
+  
   mailimap_fetch_att* requestBody
     = mailimap_fetch_att_new_body_peek_section(section); // body request
   mailimap_fetch_att* requestHeader = mailimap_fetch_att_new_envelope(); // Header request
@@ -50,11 +51,38 @@ Message::Message(mailimap** ptrimap, uint32_t uid, std::function<void()> updateu
     if(item->att_data.att_static->att_type == MAILIMAP_MSG_ATT_ENVELOPE)
     {
       msgEnv = item->att_data.att_static->att_data.att_env; // ptr to the envelope
-      if(msgEnv->env_from->frm_list != NULL)
-        msgFrom = getSender(msgEnv); // get From
       
-      if(msgEnv->env_subject != NULL)
-        msgSubject = msgEnv->env_subject; // get Subject
+      if(msgEnv->env_from->frm_list != NULL) // get From
+      {
+        string sender; // temporary sender name + email address
+        mailimap_address* temp;
+        
+        clist* fromList = msgEnv->env_from->frm_list;
+        for(clistiter* cur = clist_begin(fromList); cur; cur = clist_next(cur))
+        {
+            temp = (mailimap_address*)clist_content(cur);
+            if(temp->ad_personal_name!=NULL) // extract email name
+            {
+              sender.append("\""); sender.append(temp->ad_personal_name); // sender name
+              sender.append("\"");
+            }
+            else
+              sender.append("\"Anonymous\"");
+            
+            if(temp->ad_mailbox_name!=NULL && temp->ad_host_name!=NULL) // extract email address
+            {
+              sender.append(temp->ad_mailbox_name); sender.append("@"); // sender addr
+              sender.append(temp->ad_host_name); // sender host 
+            }
+            else
+              sender.append("<Unknown>");
+        }
+        msgFrom = sender;
+      }
+      //msgFrom = getSender(msgEnv);
+      
+      if(msgEnv->env_subject != NULL) // get Subject
+        msgSubject = msgEnv->env_subject;
     }
     // Get body
     if(item->att_data.att_static->att_type != MAILIMAP_MSG_ATT_BODY_SECTION) continue;
@@ -76,26 +104,36 @@ Message::Message(mailimap** ptrimap, uint32_t uid, std::function<void()> updateu
 
 
 /**
- * Get the content of the message from the mailimap_msg_att data structure
+ * Get sender from the mail_envelope data strcuture
  */
 /*
-char* Message::getMsgContent(mailimap_msg_att* msgAtt)
-{ 
-  for(clistiter* cur = clist_begin(msgAtt->att_list); cur; cur = clist_next(cur))
+string Message::getSender(mailimap_envelope* msgEnv)
+{
+  clist* fromList = msgEnv->env_from->frm_list;
+  //clistiter* cur = clist_begin(msgEnv->env_from->frm_list);
+  string sender;
+  mailimap_address* temp;
+  for(clistiter* cur = clist_begin(fromList); cur; cur = clist_next(cur))
+  {
+    temp = (mailimap_address*)clist_content(cur);
+    if(temp->ad_personal_name!=NULL)
     {
-      mailimap_msg_att_item* item;
-      item = (mailimap_msg_att_item*)clist_content(cur);
-      
-      if(item->att_type != MAILIMAP_MSG_ATT_ITEM_STATIC) continue;
-
-      if(item->att_data.att_static->att_type != MAILIMAP_MSG_ATT_BODY_SECTION) continue;
-
-      return item->att_data.att_static->att_data.att_body_section->sec_body_part; 
+      sender.append("\""); sender.append(temp->ad_personal_name); // sender name
+      sender.append("\"");
     }
-  
-  return NULL;
+      else sender.append("\"Anonymous\"");
+    if(temp->ad_mailbox_name!=NULL && temp->ad_host_name!=NULL)
+    {
+      sender.append(temp->ad_mailbox_name); sender.append("@"); // sender addr
+      sender.append(temp->ad_host_name); // sender host 
+    }
+    else
+      sender.append("<Unknown>");
+  }
+  return sender;
 }
 */
+
 
 /**
  * Get the body of the message. You may chose to either include the headers or not.
@@ -122,68 +160,50 @@ std::string Message::getField(std::string fieldname)
 
 
 /**
- * Get sender from the mail_envelope data strcuture
- */
-string Message::getSender(mailimap_envelope* msgEnv)
-{
-  clist* fromList = msgEnv->env_from->frm_list;
-  //clistiter* cur = clist_begin(msgEnv->env_from->frm_list);
-  string sender;
-  mailimap_address* temp;
-  for(clistiter* cur = clist_begin(fromList); cur; cur = clist_next(cur))
-  {
-    temp = (mailimap_address*)clist_content(cur);
-    if(temp->ad_personal_name!=NULL)
-    {
-      sender.append("\""); sender.append(temp->ad_personal_name); // sender name
-      sender.append("\"");
-    }
-      else sender.append("\"Anonymous\"");
-    if(temp->ad_mailbox_name!=NULL && temp->ad_host_name!=NULL)
-    {
-      sender.append(temp->ad_mailbox_name); sender.append("@"); // sender addr
-      sender.append(temp->ad_host_name); // sender host 
-    }
-    else
-      sender.append("<Unknown>");
-  }
-  return sender;
-}
-
-
-/**
  * Remove this mail from its mailbox
  */
 void Message::deleteFromMailbox()
 {
-  //--- 1. Create a \Deleted flag instance
+  // Create a \Deleted flag instance
   mailimap_flag* flagDELETED = mailimap_flag_new_deleted();
   
-  //--- 2. Add the \Deleted flag to a flag list (still not affect the object)
+  // Add the \Deleted flag to a flag list (still not affect the object)
   mailimap_flag_list* flags = mailimap_flag_list_new_empty(); // Flags of this email
   int err = mailimap_flag_list_add(flags, flagDELETED);
   check_error(err, "could not add flags");
 
-  //--- 3. Create a STORE description
-  // mailimap_store_att_flags* storeDesc  = mailimap_store_att_flags_new(1,1,flags);
-   mailimap_store_att_flags* storeDesc  = mailimap_store_att_flags_new_set_flags(flags);
+  // Create a STORE description
+  mailimap_store_att_flags* storeDesc  = mailimap_store_att_flags_new_set_flags(flags);
    
-  //--- 4. Alter the flags now!
+  // Alter the flags now!
   mailimap_set* setWithThisMsgOnly = mailimap_set_new_single(UID); // a set with this msg only
   err = mailimap_uid_store(*ptrIMAP,setWithThisMsgOnly,storeDesc);
   check_error(err,"could not alter flags");
   
-  //--- 5. Remove this email from the mailbox
+  // Remove this email from the mailbox in the server
   err = mailimap_expunge(*ptrIMAP);
   check_error(err,"could not delete this email");
 
-  //--- 6. Free garbage
+  // Free garbage
   mailimap_store_att_flags_free(storeDesc); mailimap_set_free(setWithThisMsgOnly);
   mailimap_flag_free(flagDELETED); mailimap_flag_list_free(flags); 
 
-  //--- 7. Update UI
+  // Drop the old msgList in the corresponding session since updateUIFunction()
+  // will do another Session::getMessage() again
+  for(int i = 0; session->msgList[i]; i++)
+  {
+    if(session->msgList[i] == this) // don't delete yourself before deleting all others!
+      continue;
+    else
+      delete session->msgList[i];
+  }
+  delete [] session->msgList; session->msgList = nullptr;
+
+  // Update UI
   updateUIFunction();
-  
+
+  // Locally delete thie email that is being deleted in the server
+  delete this;
 }
 
 
@@ -198,15 +218,19 @@ void Session::getMailboxStatus()
   mailimap_status_att_list* mbStaTypes = mailimap_status_att_list_new_empty();
   int err = mailimap_status_att_list_add(mbStaTypes,MAILIMAP_STATUS_ATT_MESSAGES);// # of msgs
   check_error(err, "could not get the number of emails");
-  
-  char mbName_temp[mailbox.length()+1]; strcpy(mbName_temp,mailbox.c_str());
-  //mbStatus has the specific STATUS info of all types about the mailbox
-  mailimap_mailbox_data_status* mbStatus = mailimap_mailbox_data_status_new(mbName_temp,NULL);
-  //mailimap_mailbox_data_status* mbStatus;
-  err = mailimap_status(imap, mailbox.c_str(), mbStaTypes, &mbStatus); // fetchting msg numbers
+ 
+  mailimap_mailbox_data_status* mbStatus;
+  // Using the followeing leads to memory leak!!!
+  //char mbName_temp[mailbox.length()+1];
+  //strcpy(mbName_temp,mailbox.c_str());
+  //mailimap_mailbox_data_status* mbStatus= mailimap_mailbox_data_status_new(mbName_temp,NULL);
+
+  // Fetchting msg numbers
+  err = mailimap_status(imap, mailbox.c_str(), mbStaTypes, &mbStatus);
   check_error(err, "could not fetch the mailbox status");
 
-  clist* ptrInfo = mbStatus->st_info_list;// STATUS are here
+  // Extract the msg number in the mailbox
+  clist* ptrInfo = mbStatus->st_info_list;// STATUS is here
   int statusType; // the type of STATUS
   for(clistiter* cur = clist_begin(ptrInfo); cur; cur = clist_next(cur))
   {
@@ -227,7 +251,7 @@ void Session::getMailboxStatus()
  */
 uint32_t Session::getOneMsgUID(mailimap_msg_att* msg_att)
 {
-  mailimap_msg_att_item* item; // an item of the msg_att list
+  mailimap_msg_att_item* item; // an item in the msg_att list
   
   for(clistiter* cur = clist_begin(msg_att->att_list); cur; cur = clist_next(cur))
   {
@@ -281,32 +305,24 @@ Message** Session::getMessages()
   //--- 3. Extract the UIDs of the unfetched emails from the result and warp up into a Message obj
   mailimap_msg_att* msgAtt;
   uint32_t uid; // the value of the current uid and the ptr to uid
-
   
-  Message** msglist = new Message* [numMsgs+1]; // temporary array of all msgs in the inbox
-  int i = 0;    
+  Message** msglist = new Message* [numMsgs + 1]; // temporary array of all msgs in the inbox
+  int actualNum = 0; // the actual number in the msglist, maybe less than the msgNum 
   for(clistiter* cur1 = clist_begin(result); cur1; cur1 = clist_next(cur1))
   {
     msgAtt = (mailimap_msg_att*)clist_content(cur1);
     uid = getOneMsgUID(msgAtt); // get the uid
-    if(uid != 0)
+    
+    if(uid != 0) // only instantiate when uid in nonzero
     {
-      msglist[i] = new Message(&imap,uid,updateUIFunction);
-      i++;
+      msglist[actualNum] = new Message(this,&imap,uid,updateUIFunction);
+      actualNum++;
     }
   }
-  msglist[i] = nullptr;
+  numMsgs = actualNum;
+  msglist[actualNum] = nullptr; // append a nullptr after the last fetchable msg
   msgList = msglist; // update the data member
- 
-  /*
-  else if(numMsgs == 0)
-  {
-    Message* msglist[numMsgs+1]; // temporary array of all msgs in the inbox
-    msgList[0] = nullptr;
-    msgList = msglist; // update the data member
-  }
-  */
-
+  
   /*
   
   vector<Message*> msgvectorlist;
@@ -384,6 +400,7 @@ Session::~Session()
 {
   // Free the message list
   for(int i = 0; msgList[i]; i++) delete msgList[i];
+  delete []msgList;
   // Logout then free the imap session
   mailimap_logout(imap); mailimap_free(imap);
 }

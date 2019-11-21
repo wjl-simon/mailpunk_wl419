@@ -7,30 +7,25 @@
 #include <map>
 
 namespace IMAP {
+
+class Session;
+  
 class Message {
 
-  mailimap** ptrIMAP; // ptr to the coresponding IMAP session
+  Session* session; // ptr to the coresponding session
+  mailimap** ptrIMAP; // ptr to (the coresponding session's imap)
   uint32_t const UID;
   std::string msgBody;
   std::string msgSubject;
   std::string msgFrom;
-  std::function<void()> updateUIFunction;
+  std::function<void()> updateUIFunction; // to refresh UI after deletion
 
-  /**
-   * Get the content of the message from the mailimap_msg_att data structure
-   */
-  char* getMsgContent(mailimap_msg_att* msgAtt);
-
-  /**
-   * Get sender from the mail_envelope data strcuture
-   */
-  std::string getSender(mailimap_envelope* msgEnv);
   
 public:
     /**
      * Constructor
      */
-  Message(mailimap** ptrimap, uint32_t uid, std::function<void()> updateuifunction);
+  Message(Session* session, mailimap** ptrimap, uint32_t uid, std::function<void()> updateuifunction);
 	/**
 	 * Get the body of the message. You may chose to either include the headers or not.
 	 */
@@ -47,11 +42,10 @@ public:
 
 class Session {
   mailimap* imap; // a pointer to which will later point to a newed mailmap object
-  std::string mailbox;
-  uint32_t numMsgs;
-  Message** msgList;// a list of all emails in the inbox
+  std::string mailbox; // name of the mailbox
+  uint32_t numMsgs; // number of msgs in the mailbox
+  //  Message** msgList;// a list of all emails in the inbox
   std::function<void()> updateUIFunction; // functional obj to update the UI
-
   
   /**
    * Get the mailbox status i.e. num of msgs, uid of the next mailbox, ect
@@ -65,6 +59,7 @@ class Session {
   
   
 public:
+    Message** msgList;// a list of all emails in the inbox
   
 	Session(std::function<void()> updateUI);
 
