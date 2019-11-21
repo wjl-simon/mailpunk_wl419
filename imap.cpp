@@ -4,7 +4,7 @@
 #include <string>
 #include <functional>
 #include <iostream>
-#include <cstring>
+//#include <cstring>
 
 using namespace IMAP;
 using namespace std;
@@ -79,7 +79,6 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
         }
         msgFrom = sender;
       }
-      //msgFrom = getSender(msgEnv);
       
       if(msgEnv->env_subject != NULL) // get Subject
         msgSubject = msgEnv->env_subject;
@@ -104,45 +103,9 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
 
 
 /**
- * Get sender from the mail_envelope data strcuture
- */
-/*
-string Message::getSender(mailimap_envelope* msgEnv)
-{
-  clist* fromList = msgEnv->env_from->frm_list;
-  //clistiter* cur = clist_begin(msgEnv->env_from->frm_list);
-  string sender;
-  mailimap_address* temp;
-  for(clistiter* cur = clist_begin(fromList); cur; cur = clist_next(cur))
-  {
-    temp = (mailimap_address*)clist_content(cur);
-    if(temp->ad_personal_name!=NULL)
-    {
-      sender.append("\""); sender.append(temp->ad_personal_name); // sender name
-      sender.append("\"");
-    }
-      else sender.append("\"Anonymous\"");
-    if(temp->ad_mailbox_name!=NULL && temp->ad_host_name!=NULL)
-    {
-      sender.append(temp->ad_mailbox_name); sender.append("@"); // sender addr
-      sender.append(temp->ad_host_name); // sender host 
-    }
-    else
-      sender.append("<Unknown>");
-  }
-  return sender;
-}
-*/
-
-
-/**
  * Get the body of the message. You may chose to either include the headers or not.
  */
-std::string Message::getBody()
-{
-   return msgBody;
-  //return "123";
-}
+std::string Message::getBody(){ return msgBody; }
 
 
 /**
@@ -188,7 +151,7 @@ void Message::deleteFromMailbox()
   mailimap_store_att_flags_free(storeDesc); mailimap_set_free(setWithThisMsgOnly);
   mailimap_flag_free(flagDELETED); mailimap_flag_list_free(flags); 
 
-  // Drop the old msgList in the corresponding session since updateUIFunction()
+  // Drop the old msgList in the corresponding session since the updateUIFunction()
   // will do another Session::getMessage() again
   for(int i = 0; session->msgList[i]; i++)
   {
@@ -220,7 +183,7 @@ void Session::getMailboxStatus()
   check_error(err, "could not get the number of emails");
  
   mailimap_mailbox_data_status* mbStatus;
-  // Using the followeing leads to memory leak!!!
+  // Using the following leads to memory leak!!!
   //char mbName_temp[mailbox.length()+1];
   //strcpy(mbName_temp,mailbox.c_str());
   //mailimap_mailbox_data_status* mbStatus= mailimap_mailbox_data_status_new(mbName_temp,NULL);
@@ -313,7 +276,7 @@ Message** Session::getMessages()
     msgAtt = (mailimap_msg_att*)clist_content(cur1);
     uid = getOneMsgUID(msgAtt); // get the uid
     
-    if(uid != 0) // only instantiate when uid in nonzero
+    if(uid != 0) // only instantiate when uid is nonzero
     {
       msglist[actualNum] = new Message(this,&imap,uid,updateUIFunction);
       actualNum++;
@@ -322,32 +285,6 @@ Message** Session::getMessages()
   numMsgs = actualNum;
   msglist[actualNum] = nullptr; // append a nullptr after the last fetchable msg
   msgList = msglist; // update the data member
-  
-  /*
-  
-  vector<Message*> msgvectorlist;
-  //  int i = 0;    
-  for(clistiter* cur1 = clist_begin(result); cur1; cur1 = clist_next(cur1))
-    {
-      msgAtt = (mailimap_msg_att*)clist_content(cur1);
-      uid = getOneMsgUID(msgAtt); // get the uid
-      if(uid == 0) continue;
-      //msglist[i] = new Message(&imap,uid,updateUIFunction);
-      msgvectorlist.push_back(new Message(&imap,uid,updateUIFunction));
-      //  i++; 
-    }
-  
-  numMsgs = msgvectorlist.size();
-  Message** msglist = new Message* [numMsgs+1];
-  for(int j = 0; j < numMsgs ; j++)
-    msglist[j] = msgvectorlist[j];
-
-  //msgList[i] = nullptr;
-  msglist[numMsgs] = nullptr;
-  msgList = msglist; // update the data member
-  
-  */
-
   
   //--- 5. Free garbage
   mailimap_fetch_list_free(result); // fetched result
@@ -390,9 +327,7 @@ void Session::selectMailbox(std::string const& mailbox)
   // Select a mailbox
   int err = mailimap_select(imap, mailbox.c_str());
   check_error(err, "could not select this mailbox");
-  
   // Preserve the mailbox name
-  //this->mailbox.resize(mailbox.size());
   this->mailbox = mailbox;
 }
   
@@ -400,9 +335,8 @@ Session::~Session()
 {
   // Free the message list
   for(int i = 0; msgList[i]; i++) delete msgList[i];
+
   delete []msgList;
   // Logout then free the imap session
   mailimap_logout(imap); mailimap_free(imap);
 }
-
-

@@ -19,32 +19,30 @@ class Message {
   std::string msgSubject;
   std::string msgFrom;
   std::function<void()> updateUIFunction; // to refresh UI after deletion
-
   
 public:
-    /**
-     * Constructor
-     */
-  Message(Session* session, mailimap** ptrimap, uint32_t uid, std::function<void()> updateuifunction);
-	/**
-	 * Get the body of the message. You may chose to either include the headers or not.
-	 */
-	std::string getBody();
-	/**
-	 * Get one of the descriptor fields (subject, from, ...)
-	 */
-	std::string getField(std::string fieldname);
-	/**
-	 * Remove this mail from its mailbox
-	 */
-	void deleteFromMailbox();
+
+  Message(Session* session, mailimap** ptrimap, uint32_t uid,
+          std::function<void()> updateuifunction);
+  /**
+   * Get the body of the message. You may chose to either include the headers or not.
+   */
+  std::string getBody();
+  /**
+   * Get one of the descriptor fields (subject, from, ...)
+   */
+  std::string getField(std::string fieldname);
+  /**
+   * Remove this mail from its mailbox
+   */
+  void deleteFromMailbox();
 };
 
 class Session {
+  
   mailimap* imap; // a pointer to which will later point to a newed mailmap object
   std::string mailbox; // name of the mailbox
   uint32_t numMsgs; // number of msgs in the mailbox
-  //  Message** msgList;// a list of all emails in the inbox
   std::function<void()> updateUIFunction; // functional obj to update the UI
   
   /**
@@ -59,42 +57,35 @@ class Session {
   
   
 public:
-    Message** msgList;// a list of all emails in the inbox
-  
-	Session(std::function<void()> updateUI);
 
-	/**
-	 * Get all messages in the INBOX mailbox terminated by a nullptr (like we did in class)
-	 */
-	Message** getMessages();
+  Message** msgList;// a list of all emails in the inbox
 
-	/**
-	 * connect to the specified server (143 is the standard unencrypte imap port)
-	 */
-	void connect(std::string const& server = "mailpunk.lsds.uk", size_t port = 143);
+  Session(std::function<void()> updateUI);
 
-	/**
-	 * log in to the server (connect first, then log in)
-	 */
-	void login(std::string const& userid, std::string const& password);
+  /**
+   * Get all messages in the INBOX mailbox terminated by a nullptr (like we did in class)
+   */
+  Message** getMessages();
 
-	/**
-	 * select a mailbox (only one can be selected at any given time)
-	 * 
-	 * this can only be performed after login
-	 */
-	void selectMailbox(std::string const& mailbox);
+  /**
+   * connect to the specified server (143 is the standard unencrypte imap port)
+   */
+  void connect(std::string const& server, size_t port = 143);
 
-	~Session();
+  /**
+   * log in to the server (connect first, then log in)
+   */
+  void login(std::string const& userid, std::string const& password);
+
+  /**
+   * select a mailbox (only one can be selected at any given time)
+   * 
+   * this can only be performed after login
+   */
+  void selectMailbox(std::string const& mailbox);
+
+  ~Session();
 };
-
-
-/**
-* a map from an int key to MAILIMAP_STATUS_ATT_XXX
-*/
-//std::map<int, std::string> const StatusCode;
-
-
   
 }
 
