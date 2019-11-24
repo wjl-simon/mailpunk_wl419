@@ -8,6 +8,7 @@
 
 namespace IMAP {
 
+  
 class Session;
   
 class Message {
@@ -38,6 +39,7 @@ public:
   void deleteFromMailbox();
 };
 
+
 class Session {
   
   mailimap* imap; // a pointer to which will later point to a newed mailmap object
@@ -54,8 +56,7 @@ class Session {
    * Get the UID of an msg
    */
   uint32_t getOneMsgUID(mailimap_msg_att* msg_att);
-  
-  
+    
 public:
 
   Message** msgList;// a list of all emails in the inbox
@@ -86,6 +87,7 @@ public:
 
   ~Session();
 };
+
   
 }
 

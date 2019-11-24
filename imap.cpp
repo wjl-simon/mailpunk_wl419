@@ -4,7 +4,6 @@
 #include <string>
 #include <functional>
 #include <iostream>
-//#include <cstring>
 
 using namespace IMAP;
 using namespace std;
@@ -41,7 +40,8 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
   //--- 2. Extract the body + header from the fetched result
   mailimap_msg_att* msgAtt = (mailimap_msg_att*)clist_content(clist_begin(result));
   mailimap_msg_att_item* item;
-  mailimap_envelope* msgEnv;
+  mailimap_envelope* msgEnv;  
+  // There's one msg indeed
   for(clistiter* cur = clist_begin(msgAtt->att_list); cur; cur = clist_next(cur))
   {
     item = (mailimap_msg_att_item*)clist_content(cur);
@@ -59,7 +59,7 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
         
         clist* fromList = msgEnv->env_from->frm_list;
         for(clistiter* cur = clist_begin(fromList); cur; cur = clist_next(cur))
-        {
+          {
             temp = (mailimap_address*)clist_content(cur);
             if(temp->ad_personal_name!=NULL) // extract email name
             {
@@ -76,8 +76,8 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
             }
             else
               sender.append("<Unknown>");
-        }
-        msgFrom = sender;
+          }
+        msgFrom = sender; // update the sender name to the member
       }
       
       if(msgEnv->env_subject != NULL) // get Subject
@@ -91,9 +91,11 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
     else
       msgBody = "N/A";
   }
+
     
   //--- 4. Free the garbage
   mailimap_fetch_list_free(result); // the fetched result
+  // The following leads to segmentation fault so I must comment them out!
   //mailimap_fetch_att_free(requestBody); // the request for Body
   //mailimap_fetch_att_free(requestHeader); // the request for header
   //mailimap_section_free(section);
@@ -105,7 +107,7 @@ Message::Message(Session* session, mailimap** ptrimap, uint32_t uid,
 /**
  * Get the body of the message. You may chose to either include the headers or not.
  */
-std::string Message::getBody(){ return msgBody; }
+std::string Message::getBody() { return msgBody; }
 
 
 /**
@@ -160,7 +162,7 @@ void Message::deleteFromMailbox()
     else
       delete session->msgList[i];
   }
-  delete [] session->msgList; session->msgList = nullptr;
+  delete [](session->msgList); session->msgList = nullptr;
 
   // Update UI
   updateUIFunction();
@@ -270,7 +272,7 @@ Message** Session::getMessages()
   uint32_t uid; // the value of the current uid and the ptr to uid
   
   Message** msglist = new Message* [numMsgs + 1]; // temporary array of all msgs in the inbox
-  int actualNum = 0; // the actual number in the msglist, maybe less than the msgNum 
+  int actualNum = 0; // the actual number in the msglist, maybe <= the msgNum due to uid==0 
   for(clistiter* cur1 = clist_begin(result); cur1; cur1 = clist_next(cur1))
   {
     msgAtt = (mailimap_msg_att*)clist_content(cur1);
@@ -288,7 +290,7 @@ Message** Session::getMessages()
   
   //--- 5. Free garbage
   mailimap_fetch_list_free(result); // fetched result
-  //mailimap_fetch_att_free(fetchAtt);
+  //mailimap_fetch_att_free(fetchAtt); // segmentation fault!
   mailimap_fetch_type_free(TypeToFetch);
   mailimap_set_free(msgSet);
   
@@ -317,6 +319,7 @@ void Session::login(std::string const& userid, std::string const& password)
   check_error(err, "could not login");
 }
 
+
 /**
  * select a mailbox (only one can be selected at any given time)
  * 
@@ -330,13 +333,17 @@ void Session::selectMailbox(std::string const& mailbox)
   // Preserve the mailbox name
   this->mailbox = mailbox;
 }
-  
+
+
 Session::~Session()
 {
   // Free the message list
-  for(int i = 0; msgList[i]; i++) delete msgList[i];
+  if(msgList != nullptr)
+  {
+    for(int i = 0; msgList[i]; i++) delete msgList[i];
 
-  delete []msgList;
+    delete []msgList;
+  }
   // Logout then free the imap session
   mailimap_logout(imap); mailimap_free(imap);
 }
