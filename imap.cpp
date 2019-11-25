@@ -251,6 +251,8 @@ Message** Session::getMessages()
 {
   //--- 1. Get the mailbox STATUS
   getMailboxStatus(); // effectively getting the num of msgs in the inbox
+
+  if(numMsgs == 0) return nullptr; // do not fetch mail list if there's no email at all
   
   //--- 2. Fetching the UIDs of the unfetched message
   mailimap_set* msgSet;
