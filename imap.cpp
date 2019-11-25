@@ -151,7 +151,9 @@ void Message::deleteFromMailbox()
 
   // Free garbage
   mailimap_store_att_flags_free(storeDesc); mailimap_set_free(setWithThisMsgOnly);
-  mailimap_flag_free(flagDELETED); mailimap_flag_list_free(flags); 
+  // Segmentation fault!
+  //mailimap_flag_free(flagDELETED);
+  //mailimap_flag_list_free(flags); 
 
   // Drop the old msgList in the corresponding session since the updateUIFunction()
   // will do another Session::getMessage() again
